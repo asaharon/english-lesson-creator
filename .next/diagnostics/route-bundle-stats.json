@@ -1,0 +1,57 @@
+[
+  {
+    "route": "/lesson/[id]",
+    "firstLoadUncompressedJsBytes": 539279,
+    "firstLoadChunkPaths": [
+      ".next\\static\\chunks\\13h-0fd.p-1ga.js",
+      ".next\\static\\chunks\\0d3shmwh5_nmn.js",
+      ".next\\static\\chunks\\167za2o5by6-o.js",
+      ".next\\static\\chunks\\0p8tu7idk~nwx.js",
+      ".next\\static\\chunks\\0pqt~8bl3ukh4.js",
+      ".next\\static\\chunks\\07lhk_q6pmm3r.js",
+      ".next\\static\\chunks\\0c7h~x4_chf35.js",
+      ".next\\static\\chunks\\turbopack-0dy7t4~-htz7p.js"
+    ]
+  },
+  {
+    "route": "/create",
+    "firstLoadUncompressedJsBytes": 530331,
+    "firstLoadChunkPaths": [
+      ".next\\static\\chunks\\13h-0fd.p-1ga.js",
+      ".next\\static\\chunks\\0d3shmwh5_nmn.js",
+      ".next\\static\\chunks\\06l-g6hfxqdzg.js",
+      ".next\\static\\chunks\\0p8tu7idk~nwx.js",
+      ".next\\static\\chunks\\0pqt~8bl3ukh4.js",
+      ".next\\static\\chunks\\07lhk_q6pmm3r.js",
+      ".next\\static\\chunks\\0c7h~x4_chf35.js",
+      ".next\\static\\chunks\\turbopack-0dy7t4~-htz7p.js"
+    ]
+  },
+  {
+    "route": "/",
+    "firstLoadUncompressedJsBytes": 525745,
+    "firstLoadChunkPaths": [
+      ".next\\static\\chunks\\13h-0fd.p-1ga.js",
+      ".next\\static\\chunks\\0d3shmwh5_nmn.js",
+      ".next\\static\\chunks\\0l2.yig522y2s.js",
+      ".next\\static\\chunks\\0p8tu7idk~nwx.js",
+      ".next\\static\\chunks\\0pqt~8bl3ukh4.js",
+      ".next\\static\\chunks\\07lhk_q6pmm3r.js",
+      ".next\\static\\chunks\\0c7h~x4_chf35.js",
+      ".next\\static\\chunks\\turbopack-0dy7t4~-htz7p.js"
+    ]
+  },
+  {
+    "route": "/_not-found",
+    "firstLoadUncompressedJsBytes": 520363,
+    "firstLoadChunkPaths": [
+      ".next\\static\\chunks\\13h-0fd.p-1ga.js",
+      ".next\\static\\chunks\\0d3shmwh5_nmn.js",
+      ".next\\static\\chunks\\0p8tu7idk~nwx.js",
+      ".next\\static\\chunks\\0pqt~8bl3ukh4.js",
+      ".next\\static\\chunks\\07lhk_q6pmm3r.js",
+      ".next\\static\\chunks\\0c7h~x4_chf35.js",
+      ".next\\static\\chunks\\turbopack-0dy7t4~-htz7p.js"
+    ]
+  }
+]
