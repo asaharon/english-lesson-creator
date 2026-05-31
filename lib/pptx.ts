@@ -82,9 +82,9 @@ async function addTitleSlide(
   const slide = pptx.addSlide();
   slide.background = { color: theme.header };
 
-  // Background photo (imageTopic)
-  if (s.imageTopic) {
-    const img = await fetchWikiImage(s.imageTopic);
+  // Background photo — prefer pre-fetched client data, fall back to server fetch
+  if (s._imgBase64 || s.imageTopic) {
+    const img = s._imgBase64 ?? await fetchWikiImage(s.imageTopic!);
     if (img) {
       slide.addImage({ data: img, x: 0, y: 0, w: SLIDE_W, h: SLIDE_H, transparency: 65 });
       // Re-draw a semi-transparent overlay so text stays readable
@@ -122,8 +122,8 @@ async function addBulletsSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   addHeader(slide, s.title, s.emoji, theme);
 
   // Small thumbnail in top-right corner
-  if (s.imageTopic) {
-    const img = await fetchWikiImage(s.imageTopic);
+  if (s._imgBase64 || s.imageTopic) {
+    const img = s._imgBase64 ?? await fetchWikiImage(s.imageTopic!);
     if (img) {
       slide.addImage({ data: img, x: SLIDE_W - 2.2, y: 1.3, w: 1.8, h: 1.2,
         rounding: true });
@@ -152,9 +152,13 @@ async function addVocabularySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   const content = s.content as VocabularyContent;
   const words = content.words ?? [];
 
-  // Pre-fetch all wiki images in parallel
+  // Use pre-fetched client images if available, otherwise try server-side fetch
   const imgs = await Promise.all(
-    words.map(w => w.wikiTopic ? fetchWikiImage(w.wikiTopic) : Promise.resolve(null))
+    words.map(w =>
+      w._imgBase64
+        ? Promise.resolve(w._imgBase64)
+        : w.wikiTopic ? fetchWikiImage(w.wikiTopic) : Promise.resolve(null)
+    )
   );
 
   // Adaptive per-page count → always 3 columns to match web preview
@@ -265,8 +269,8 @@ async function addGrammarSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   const c = s.content as GrammarContent;
 
   // Small photo on the right if available
-  if (s.imageTopic) {
-    const img = await fetchWikiImage(s.imageTopic);
+  if (s._imgBase64 || s.imageTopic) {
+    const img = s._imgBase64 ?? await fetchWikiImage(s.imageTopic!);
     if (img) {
       slide.addImage({ data: img, x: SLIDE_W - 2.4, y: 1.3, w: 2.0, h: 1.4, rounding: true });
     }
@@ -318,7 +322,7 @@ async function addReadingSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   addHeader(slide, s.title, s.emoji ?? '📖', theme);
 
   const c = s.content as ReadingContent;
-  const img = s.imageTopic ? await fetchWikiImage(s.imageTopic) : null;
+  const img = s._imgBase64 ?? (s.imageTopic ? await fetchWikiImage(s.imageTopic) : null);
   const textW = img ? SLIDE_W * 0.58 - 0.6 : SLIDE_W - 0.8;
 
   // Reading text box (left side)
@@ -363,17 +367,21 @@ async function addActivitySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   const c = s.content as ActivityContent;
   const isExercise = c.activityType === 'exercise';
 
-  // Pre-fetch per-instruction images for exercise slides
+  // Per-instruction images: prefer pre-fetched, fall back to server fetch
   let instrImgs: (string | null)[] = [];
-  if (isExercise && c.instructionTopics?.length) {
-    instrImgs = await Promise.all(
-      (c.instructionTopics).map(t => (t ? fetchWikiImage(t) : Promise.resolve(null)))
-    );
+  if (isExercise) {
+    if (c._instructionImgs?.length) {
+      instrImgs = c._instructionImgs;
+    } else if (c.instructionTopics?.length) {
+      instrImgs = await Promise.all(
+        c.instructionTopics.map(t => (t ? fetchWikiImage(t) : Promise.resolve(null)))
+      );
+    }
   }
 
   // Slide-level photo banner (non-exercise) or small corner thumbnail
-  if (s.imageTopic && !isExercise) {
-    const img = await fetchWikiImage(s.imageTopic);
+  if (!isExercise && (s._imgBase64 || s.imageTopic)) {
+    const img = s._imgBase64 ?? await fetchWikiImage(s.imageTopic!);
     if (img) {
       slide.addImage({ data: img, x: SLIDE_W - 2.2, y: 1.3, w: 1.8, h: 1.2, rounding: true });
     }

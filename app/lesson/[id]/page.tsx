@@ -3,8 +3,80 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Presentation, getGradeBand } from '@/types/lesson';
+import { Presentation, VocabularyContent, ActivityContent, getGradeBand } from '@/types/lesson';
 import { SlideRenderer } from '@/components/SlideRenderer';
+
+// ─── Client-side image pre-fetcher ───────────────────────────────────────────
+// Fetches all Wikipedia images in the browser (bypasses server network blocks)
+// and attaches base64 data to a deep-cloned copy of the presentation.
+
+async function fetchAsBase64(topic: string): Promise<string | null> {
+  try {
+    const r = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic.trim())}`
+    );
+    if (!r.ok) return null;
+    const data = await r.json() as { thumbnail?: { source: string } };
+    const url = data?.thumbnail?.source;
+    if (!url || url.toLowerCase().endsWith('.svg')) return null;
+
+    const ir = await fetch(url);
+    if (!ir.ok) return null;
+    const blob = await ir.blob();
+    return new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch { return null; }
+}
+
+async function enrichWithImages(pres: Presentation): Promise<Presentation> {
+  // Deep clone so we never mutate the localStorage copy
+  const enriched: Presentation = JSON.parse(JSON.stringify(pres));
+  const tasks: Promise<void>[] = [];
+
+  for (const slide of enriched.slides) {
+    // Slide-level image (title, bullets, reading, grammar, activity banners)
+    if (slide.imageTopic && !slide._imgBase64) {
+      tasks.push(fetchAsBase64(slide.imageTopic).then(img => {
+        if (img) slide._imgBase64 = img;
+      }));
+    }
+    // Vocabulary word images
+    if (slide.content.type === 'vocabulary') {
+      for (const word of (slide.content as VocabularyContent).words ?? []) {
+        if (word.wikiTopic && !word._imgBase64) {
+          const w = word;
+          tasks.push(fetchAsBase64(w.wikiTopic!).then(img => {
+            if (img) w._imgBase64 = img;
+          }));
+        }
+      }
+    }
+    // Activity exercise per-instruction images
+    if (slide.content.type === 'activity') {
+      const ac = slide.content as ActivityContent;
+      const topics = ac.instructionTopics ?? [];
+      if (topics.some(Boolean) && !ac._instructionImgs?.length) {
+        ac._instructionImgs = new Array(topics.length).fill(null);
+        for (let i = 0; i < topics.length; i++) {
+          const topic = topics[i];
+          const idx = i;
+          if (topic) {
+            tasks.push(fetchAsBase64(topic).then(img => {
+              ac._instructionImgs![idx] = img;
+            }));
+          }
+        }
+      }
+    }
+  }
+
+  await Promise.all(tasks);
+  return enriched;
+}
 
 const SLIDE_TYPE_LABELS: Record<string, string> = {
   title: '🎓 Title', warmup: '🌅 Warm-up', objectives: '🎯 Objectives',
@@ -63,10 +135,14 @@ export default function LessonPage() {
     if (!presentation) return;
     setExporting(true);
     try {
+      // Step 1: fetch all Wikipedia images in the browser (avoids server network blocks)
+      const enriched = await enrichWithImages(presentation);
+
+      // Step 2: send enriched data (with embedded base64 images) to the export API
       const res = await fetch('/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(presentation),
+        body: JSON.stringify(enriched),
       });
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();

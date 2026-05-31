@@ -10,7 +10,8 @@ export interface VocabularyWord {
   definition: string;
   emoji?: string;
   example?: string;
-  wikiTopic?: string; // Wikipedia article title for photo lookup
+  wikiTopic?: string;   // Wikipedia article title for photo lookup
+  _imgBase64?: string;  // pre-fetched client-side base64 (transient, not persisted)
 }
 
 export interface TitleContent { type: 'title'; emoji?: string }
@@ -28,7 +29,8 @@ export interface ActivityContent {
   type: 'activity';
   activityType: 'game' | 'exercise' | 'discussion' | 'song';
   instructions: string[];
-  instructionTopics?: (string | null)[]; // Wikipedia topic per instruction item (for images)
+  instructionTopics?: (string | null)[];
+  _instructionImgs?: (string | null)[]; // pre-fetched base64 per instruction (transient)
   content?: string;
 }
 
@@ -45,7 +47,8 @@ export interface Slide {
   duration: number;
   teacherNotes: string;
   emoji?: string;
-  imageTopic?: string; // Wikipedia article title for slide background photo
+  imageTopic?: string;   // Wikipedia article title for slide background photo
+  _imgBase64?: string;   // pre-fetched client-side base64 (transient, not persisted)
 }
 
 export interface Presentation {
