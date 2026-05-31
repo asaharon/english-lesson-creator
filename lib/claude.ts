@@ -73,7 +73,8 @@ CONTENT OBJECT SHAPES (use exactly these):
   IMPORTANT for wikiTopic: use the exact English Wikipedia article title (e.g. "Dog", "Apple", "Football", "School", "Family"). Use a common noun or well-known topic that has a Wikipedia article with a photo. Leave blank only for abstract concepts.
 - grammar:            { "type": "grammar", "rule": "...", "structure": "Subject + is + Verb-ing", "examples": ["...", "..."], "emoji": "📝" }
 - reading:            { "type": "reading", "text": "...", "questions": ["..."] }
-- activity/game/song/speaking/practice: { "type": "activity", "activityType": "game|exercise|discussion|song", "instructions": ["Step 1: ...", "Step 2: ..."], "content": "game content or lyrics" }`;
+- activity/game/song/speaking/practice: { "type": "activity", "activityType": "game|exercise|discussion|song", "instructions": ["Step 1: ...", "Step 2: ..."], "instructionTopics": ["Dog", null, "Apple"], "content": "game content or lyrics" }
+  IMPORTANT for instructionTopics: provide ONE entry per instruction item. Each entry must be the Wikipedia article title for the main concrete noun/object in that sentence (e.g. "Dress", "Hamburger", "Window", "Book"). Use null for abstract steps or steps with no clear visual object. This powers a large illustration shown beside each item.`;
 }
 
 export async function generateLesson(form: LessonFormData): Promise<Presentation> {

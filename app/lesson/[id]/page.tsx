@@ -103,38 +103,38 @@ export default function LessonPage() {
 
   return (
     <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Top bar */}
-      <div style={{ background: 'var(--app-surface)', borderBottom: '1px solid var(--app-border)', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0, flexWrap: 'wrap' }}>
-        <Link href="/" style={{ color: 'var(--app-muted)', textDecoration: 'none', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-          ← Dashboard
+      {/* Top bar — light, EC101 style */}
+      <div style={{ background: 'var(--app-surface)', borderBottom: '1px solid var(--app-border)', padding: '0.55rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0, flexWrap: 'wrap', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--app-muted)', textDecoration: 'none', fontSize: '0.82rem', whiteSpace: 'nowrap', fontWeight: 600, padding: '0.3rem 0.65rem', borderRadius: '7px', border: '1px solid var(--app-border)' }}>
+          ← My Lessons
         </Link>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, color: 'var(--app-text)', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{presentation.title}</div>
-          <div style={{ color: 'var(--app-muted)', fontSize: '0.75rem' }}>
+          <div style={{ fontWeight: 800, color: 'var(--app-text)', fontSize: '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{presentation.title}</div>
+          <div style={{ color: 'var(--app-muted)', fontSize: '0.72rem' }}>
             Grade {presentation.grade} · {SLIDE_TYPE_LABELS[slide?.type] ?? slide?.type}
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button
             onClick={() => setShowNotes(s => !s)}
-            style={{ padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid var(--app-border)', background: showNotes ? 'var(--app-accent)' : 'var(--app-bg)', color: showNotes ? '#fff' : 'var(--app-muted)', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ padding: '0.38rem 0.8rem', borderRadius: '8px', border: `1.5px solid ${showNotes ? 'var(--app-accent)' : 'var(--app-border)'}`, background: showNotes ? 'var(--app-accent)' : 'var(--app-surface)', color: showNotes ? '#fff' : 'var(--app-text)', fontSize: '0.78rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 700 }}
           >
             📝 Notes {showNotes ? '▼' : '▲'}
           </button>
           <button
             onClick={handleExport}
             disabled={exporting}
-            style={{ padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid var(--app-border)', background: 'var(--app-bg)', color: 'var(--app-muted)', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', opacity: exporting ? 0.6 : 1 }}
+            style={{ padding: '0.38rem 0.8rem', borderRadius: '8px', border: '1.5px solid var(--app-border)', background: 'var(--app-surface)', color: 'var(--app-text)', fontSize: '0.78rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 700, opacity: exporting ? 0.6 : 1 }}
           >
             {exporting ? '⏳ Exporting…' : '⬇ PPTX'}
           </button>
         </div>
-        <span style={{ color: 'var(--app-muted)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+        <span style={{ color: 'var(--app-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap', fontWeight: 700 }}>
           {current + 1} / {total}
         </span>
       </div>
 
-      {/* Progress bar */}
+      {/* Progress bar — red accent */}
       <div style={{ height: '3px', background: 'var(--app-border)', flexShrink: 0 }}>
         <div style={{ height: '100%', background: 'var(--app-accent)', width: `${progress}%`, transition: 'width 0.3s ease' }} />
       </div>
@@ -142,20 +142,21 @@ export default function LessonPage() {
       {/* Main content area */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* Slide thumbnails sidebar */}
-        <div style={{ width: '140px', background: 'var(--app-surface)', borderRight: '1px solid var(--app-border)', overflowY: 'auto', flexShrink: 0 }} className="hidden md:block">
+        {/* Slide thumbnails sidebar — light style */}
+        <div style={{ width: '148px', background: 'var(--app-surface)', borderRight: '1px solid var(--app-border)', overflowY: 'auto', flexShrink: 0 }} className="hidden md:block">
           {presentation.slides.map((s, i) => (
             <button key={i} onClick={() => goTo(i)}
               style={{
-                width: '100%', padding: '0.5rem', border: 'none', cursor: 'pointer', textAlign: 'left',
-                background: i === current ? 'rgba(99,102,241,0.2)' : 'transparent',
-                borderLeft: i === current ? '3px solid var(--app-accent)' : '3px solid transparent',
+                width: '100%', padding: '0.55rem 0.65rem', border: 'none', cursor: 'pointer', textAlign: 'left',
+                background: i === current ? 'var(--app-accent-light)' : 'transparent',
+                borderLeft: `3px solid ${i === current ? 'var(--app-accent)' : 'transparent'}`,
+                borderBottom: '1px solid var(--app-border)',
               }}
             >
-              <div style={{ fontSize: '0.65rem', color: i === current ? '#a5b4fc' : 'var(--app-muted)', fontWeight: i === current ? 700 : 400, marginBottom: '0.1rem' }}>
+              <div style={{ fontSize: '0.63rem', color: i === current ? 'var(--app-accent)' : 'var(--app-muted)', fontWeight: i === current ? 800 : 500, marginBottom: '0.1rem' }}>
                 {i + 1}. {SLIDE_TYPE_LABELS[s.type]?.split(' ')[1] ?? s.type}
               </div>
-              <div style={{ fontSize: '0.7rem', color: i === current ? 'var(--app-text)' : 'var(--app-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: '0.68rem', color: i === current ? 'var(--app-text)' : 'var(--app-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: i === current ? 700 : 400 }}>
                 {s.title}
               </div>
             </button>
@@ -164,7 +165,7 @@ export default function LessonPage() {
 
         {/* Slide + navigation */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.75rem', background: '#0a0a0a', gap: '0.75rem' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.75rem', background: '#0d1520', gap: '0.75rem' }}>
             {/* Prev arrow */}
             <button onClick={() => goTo(current - 1)} disabled={isFirst}
               style={{ flexShrink: 0, width: '44px', height: '44px', borderRadius: '50%', border: '1px solid var(--app-border)', background: isFirst ? 'transparent' : 'var(--app-surface)', color: isFirst ? 'var(--app-border)' : 'var(--app-text)', fontSize: '1.2rem', cursor: isFirst ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -183,35 +184,34 @@ export default function LessonPage() {
             </button>
           </div>
 
-          {/* Teacher notes panel */}
+          {/* Teacher notes panel — light, EC101-style */}
           {showNotes && slide?.teacherNotes && (
-            <div style={{ background: '#1a1a2e', borderTop: '2px solid #6366f1', padding: '0.75rem 1.25rem', flexShrink: 0, maxHeight: '140px', overflowY: 'auto' }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>
+            <div style={{ background: 'var(--app-yellow-light)', borderTop: '2px solid var(--app-yellow)', padding: '0.75rem 1.25rem', flexShrink: 0, maxHeight: '140px', overflowY: 'auto' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>
                 📝 Teacher Notes
               </div>
-              <p style={{ margin: 0, color: '#c7d2fe', fontSize: '0.88rem', lineHeight: 1.6 }}>{slide.teacherNotes}</p>
+              <p style={{ margin: 0, color: '#451a03', fontSize: '0.88rem', lineHeight: 1.65 }}>{slide.teacherNotes}</p>
             </div>
           )}
           {showNotes && !slide?.teacherNotes && (
-            <div style={{ background: '#1a1a2e', borderTop: '2px solid #6366f1', padding: '0.75rem 1.25rem', flexShrink: 0 }}>
-              <p style={{ margin: 0, color: 'var(--app-muted)', fontSize: '0.85rem' }}>No teacher notes for this slide.</p>
+            <div style={{ background: 'var(--app-yellow-light)', borderTop: '2px solid var(--app-yellow)', padding: '0.75rem 1.25rem', flexShrink: 0 }}>
+              <p style={{ margin: 0, color: '#92400e', fontSize: '0.85rem' }}>No teacher notes for this slide.</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Bottom navigation dots + keyboard hint */}
-      <div style={{ background: 'var(--app-surface)', borderTop: '1px solid var(--app-border)', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        {/* Dot navigation */}
+      <div style={{ background: 'var(--app-surface)', borderTop: '1px solid var(--app-border)', padding: '0.55rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', maxWidth: '60%' }}>
           {presentation.slides.map((_, i) => (
             <button key={i} onClick={() => goTo(i)}
-              style={{ width: i === current ? '20px' : '8px', height: '8px', borderRadius: '999px', border: 'none', cursor: 'pointer', background: i === current ? 'var(--app-accent)' : 'var(--app-border)', transition: 'all 0.2s', padding: 0, flexShrink: 0 }}
+              style={{ width: i === current ? '22px' : '8px', height: '8px', borderRadius: '999px', border: 'none', cursor: 'pointer', background: i === current ? 'var(--app-accent)' : 'var(--app-border)', transition: 'all 0.2s', padding: 0, flexShrink: 0 }}
             />
           ))}
         </div>
-        <div style={{ color: 'var(--app-muted)', fontSize: '0.72rem' }}>
-          ← → arrows · N = notes
+        <div style={{ color: 'var(--app-muted)', fontSize: '0.7rem', fontWeight: 600 }}>
+          ← → to navigate · N = notes
         </div>
       </div>
 

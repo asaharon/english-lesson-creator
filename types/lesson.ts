@@ -28,6 +28,7 @@ export interface ActivityContent {
   type: 'activity';
   activityType: 'game' | 'exercise' | 'discussion' | 'song';
   instructions: string[];
+  instructionTopics?: (string | null)[]; // Wikipedia topic per instruction item (for images)
   content?: string;
 }
 

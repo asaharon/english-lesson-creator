@@ -307,7 +307,7 @@ function VocabularySlide({ slide, theme }: { slide: Slide; theme: Theme }) {
   const c = slide.content as VocabularyContent;
   const words = c.words ?? [];
   const cols  = words.length <= 2 ? words.length : words.length <= 4 ? 2 : 3;
-  const imgSz = words.length <= 2 ? 100 : words.length <= 4 ? 84 : 64;
+  const imgSz = words.length <= 2 ? 110 : words.length <= 4 ? 90 : 70;
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
@@ -316,8 +316,8 @@ function VocabularySlide({ slide, theme }: { slide: Slide; theme: Theme }) {
         {words.map((w, i) => (
           <div key={i} style={{ background: theme.card, border: `2px solid ${theme.border}`, borderRadius: '18px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 4px 14px rgba(0,0,0,0.08)' }}>
 
-            {/* Photo/Emoji panel */}
-            <div style={{ borderBottom: `1px solid ${theme.border}`, position: 'relative', overflow: 'hidden', height: words.length <= 2 ? '130px' : words.length <= 4 ? '110px' : '90px', background: theme.pill, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* Photo/Emoji panel — taller for bigger visual impact */}
+            <div style={{ borderBottom: `1px solid ${theme.border}`, position: 'relative', overflow: 'hidden', height: words.length <= 2 ? '165px' : words.length <= 4 ? '135px' : '105px', background: theme.pill, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {/* Wikipedia photo behind emoji */}
               {w.wikiTopic && (
                 <div style={{ position: 'absolute', inset: 0 }}>
@@ -488,57 +488,112 @@ function ActivitySlide({ slide, theme }: { slide: Slide; theme: Theme }) {
   const c = slide.content as ActivityContent;
   const typeEmoji: Record<string, string> = { game: '🎮', song: '🎵', discussion: '💬', exercise: '✏️' };
   const mainEmoji = slide.emoji ?? typeEmoji[c.activityType] ?? '⭐';
+  const isExercise = c.activityType === 'exercise';
+  const hasItemImages = isExercise && (c.instructionTopics ?? []).some(t => t);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
       <Header title={slide.title} emoji={mainEmoji} theme={theme} duration={slide.duration} />
-      <div style={{ flex: 1, padding: '0.75rem 1.05rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', overflowY: 'auto' }}>
 
-        {/* Central illustrated banner */}
-        <div style={{ background: theme.pill, border: `1px solid ${theme.border}`, borderRadius: '16px', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.2rem', position: 'relative', overflow: 'hidden' }}>
-          <span style={{ position: 'absolute', left: '-10px', fontSize: 70, opacity: 0.08, transform: 'rotate(-15deg)', lineHeight: 1, pointerEvents: 'none' }}>{mainEmoji}</span>
-          <EmojiImg emoji={mainEmoji} size={68} />
-          <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: theme.fs.body, fontWeight: 800, color: theme.accent, textTransform: 'capitalize' }}>{c.activityType}</div>
-            <div style={{ fontSize: theme.fs.xs, color: theme.muted }}>Follow the steps below</div>
-          </div>
-          <EmojiImg emoji={mainEmoji} size={42} style={{ opacity: 0.5 }} />
-          {/* Wikipedia photo pill on the right of banner */}
-          {slide.imageTopic && (
-            <WikiImage topic={slide.imageTopic}
-              style={{ width: '80px', height: '56px', borderRadius: '10px', border: `2px solid ${theme.border}`, flexShrink: 0, position: 'relative', zIndex: 2 }}
-              rounded={true} overlay={false} />
+      {/* ── EXERCISE layout: each item gets a large side illustration ─────── */}
+      {isExercise ? (
+        <div style={{ flex: 1, padding: '0.6rem 0.9rem', display: 'flex', flexDirection: 'column', gap: '0.38rem', overflowY: 'auto' }}>
+          {(c.instructions ?? []).map((step, i) => {
+            const topic = c.instructionTopics?.[i] ?? null;
+            const { lead, rest } = splitLeadEmoji(step);
+            const imgH = c.instructions.length <= 4 ? 90 : c.instructions.length <= 6 ? 74 : 60;
+            const imgW = Math.round(imgH * 1.15);
+            return (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: '0.7rem',
+                background: theme.card, border: `1.5px solid ${theme.border}`,
+                borderRadius: '14px', padding: `0.5rem 0.75rem`,
+                borderLeft: `4px solid ${theme.accent}`,
+                boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                minHeight: `${imgH + 12}px`,
+              }}>
+                {/* Step number or leading emoji */}
+                {lead
+                  ? <EmojiImg emoji={lead} size={28} style={{ flexShrink: 0 }} />
+                  : <span style={{ background: theme.headerGrad, color: '#fff', minWidth: '28px', height: '28px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
+                }
+
+                {/* Sentence text */}
+                <span style={{ flex: 1, color: theme.text, fontSize: theme.fs.body, lineHeight: 1.5, fontWeight: 500 }}>
+                  {rest || step}
+                </span>
+
+                {/* Large illustration — the main visual upgrade */}
+                {topic ? (
+                  <WikiImage
+                    topic={topic}
+                    style={{ width: `${imgW}px`, height: `${imgH}px`, borderRadius: '10px', border: `2px solid ${theme.border}`, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}
+                    rounded={true} overlay={false}
+                  />
+                ) : hasItemImages ? (
+                  /* placeholder keeps alignment when some items have images and others don't */
+                  <div style={{ width: `${imgW}px`, height: `${imgH}px`, flexShrink: 0 }} />
+                ) : null}
+              </div>
+            );
+          })}
+
+          {/* Song lyrics / game content */}
+          {c.content && (
+            <div style={{ background: 'rgba(255,255,255,0.9)', border: `2px dashed ${theme.border}`, borderRadius: '14px', padding: '0.6rem 0.9rem', marginTop: '0.2rem' }}>
+              <p style={{ margin: 0, color: theme.text, fontSize: theme.fs.sm, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{c.content}</p>
+            </div>
           )}
-          <span style={{ position: 'absolute', right: '-10px', fontSize: 70, opacity: 0.08, transform: 'rotate(15deg)', lineHeight: 1, pointerEvents: 'none' }}>{mainEmoji}</span>
         </div>
 
-        {/* Instructions */}
-        <div>
-          <div style={{ fontSize: theme.fs.xs, fontWeight: 700, color: theme.accent, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.38rem' }}>Instructions</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.32rem' }}>
-            {(c.instructions ?? []).map((step, i) => {
-              const { lead, rest } = splitLeadEmoji(step);
-              return (
-                <div key={i} style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', background: theme.card, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '0.5rem 0.85rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                  {lead
-                    ? <EmojiImg emoji={lead} size={26} style={{ flexShrink: 0 }} />
-                    : <span style={{ background: theme.headerGrad, color: '#fff', minWidth: '26px', height: '26px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
-                  }
-                  <span style={{ color: theme.text, fontSize: theme.fs.body, lineHeight: 1.5 }}>{rest || step}</span>
-                </div>
-              );
-            })}
+      ) : (
+        /* ── GAME / SONG / DISCUSSION layout: illustrated banner + steps ── */
+        <div style={{ flex: 1, padding: '0.75rem 1.05rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', overflowY: 'auto' }}>
+
+          {/* Central illustrated banner */}
+          <div style={{ background: theme.pill, border: `1px solid ${theme.border}`, borderRadius: '16px', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.2rem', position: 'relative', overflow: 'hidden' }}>
+            <span style={{ position: 'absolute', left: '-10px', fontSize: 70, opacity: 0.08, transform: 'rotate(-15deg)', lineHeight: 1, pointerEvents: 'none' }}>{mainEmoji}</span>
+            <EmojiImg emoji={mainEmoji} size={68} />
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
+              <div style={{ fontSize: theme.fs.body, fontWeight: 800, color: theme.accent, textTransform: 'capitalize' }}>{c.activityType}</div>
+              <div style={{ fontSize: theme.fs.xs, color: theme.muted }}>Follow the steps below</div>
+            </div>
+            <EmojiImg emoji={mainEmoji} size={42} style={{ opacity: 0.5 }} />
+            {slide.imageTopic && (
+              <WikiImage topic={slide.imageTopic}
+                style={{ width: '80px', height: '56px', borderRadius: '10px', border: `2px solid ${theme.border}`, flexShrink: 0, position: 'relative', zIndex: 2 }}
+                rounded={true} overlay={false} />
+            )}
+            <span style={{ position: 'absolute', right: '-10px', fontSize: 70, opacity: 0.08, transform: 'rotate(15deg)', lineHeight: 1, pointerEvents: 'none' }}>{mainEmoji}</span>
           </div>
+
+          {/* Instructions */}
+          <div>
+            <div style={{ fontSize: theme.fs.xs, fontWeight: 700, color: theme.accent, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.38rem' }}>Instructions</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.32rem' }}>
+              {(c.instructions ?? []).map((step, i) => {
+                const { lead, rest } = splitLeadEmoji(step);
+                return (
+                  <div key={i} style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', background: theme.card, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '0.5rem 0.85rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                    {lead
+                      ? <EmojiImg emoji={lead} size={26} style={{ flexShrink: 0 }} />
+                      : <span style={{ background: theme.headerGrad, color: '#fff', minWidth: '26px', height: '26px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
+                    }
+                    <span style={{ color: theme.text, fontSize: theme.fs.body, lineHeight: 1.5 }}>{rest || step}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Song lyrics / game content */}
+          {c.content && (
+            <div style={{ background: 'rgba(255,255,255,0.9)', border: `2px dashed ${theme.border}`, borderRadius: '14px', padding: '0.7rem 1rem', flexShrink: 0 }}>
+              <p style={{ margin: 0, color: theme.text, fontSize: theme.fs.sm, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{c.content}</p>
+            </div>
+          )}
         </div>
-
-        {/* Song lyrics / game content */}
-        {c.content && (
-          <div style={{ background: 'rgba(255,255,255,0.9)', border: `2px dashed ${theme.border}`, borderRadius: '14px', padding: '0.7rem 1rem', flexShrink: 0 }}>
-            <p style={{ margin: 0, color: theme.text, fontSize: theme.fs.sm, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{c.content}</p>
-          </div>
-        )}
-
-      </div>
+      )}
     </div>
   );
 }
