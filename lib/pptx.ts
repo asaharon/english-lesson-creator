@@ -145,6 +145,8 @@ async function addBulletsSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
 }
 
 // ─── VOCABULARY slide ─────────────────────────────────────────────────────────
+// Layout mirrors the web preview: 3-column grid, photo fills top ~42%,
+// emoji badge in a white circle overlaid on the photo, word/def/example below.
 
 async function addVocabularySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   const content = s.content as VocabularyContent;
@@ -155,92 +157,98 @@ async function addVocabularySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
     words.map(w => w.wikiTopic ? fetchWikiImage(w.wikiTopic) : Promise.resolve(null))
   );
 
-  const perSlide = 4;
+  // Adaptive per-page count → always 3 columns to match web preview
+  const perSlide = words.length <= 4 ? 4 : words.length <= 6 ? 6 : 9;
+  const cols = words.length <= 2 ? words.length : 3;
+  const gap  = 0.14;
+  const padX = 0.32;
+  const padY = 0.14;
+
   for (let page = 0; page < Math.ceil(words.length / perSlide); page++) {
     const slide = pptx.addSlide();
     slide.background = { color: theme.bg };
-    const pageTitle = Math.ceil(words.length / perSlide) > 1
-      ? `${s.title} (${page + 1}/${Math.ceil(words.length / perSlide)})`
-      : s.title;
+    const pages = Math.ceil(words.length / perSlide);
+    const pageTitle = pages > 1 ? `${s.title} (${page + 1}/${pages})` : s.title;
     addHeader(slide, pageTitle, s.emoji ?? '📚', theme);
 
-    const chunk = words.slice(page * perSlide, page * perSlide + perSlide);
+    const chunk    = words.slice(page * perSlide, page * perSlide + perSlide);
     const chunkImgs = imgs.slice(page * perSlide, page * perSlide + perSlide);
-    const cols = chunk.length <= 2 ? chunk.length : 2;
-    const rows = Math.ceil(chunk.length / cols);
-    const cardW = (SLIDE_W - 0.8) / cols - 0.2;
-    const cardH = (SLIDE_H - 1.5) / rows - 0.2;
-    const photoH = cardH * 0.50; // top 50% of card = photo
+    const rows  = Math.ceil(chunk.length / cols);
+    const cardW = (SLIDE_W - padX * 2 - gap * (cols - 1)) / cols;
+    const cardH = (SLIDE_H - 1.5 - padY * 2 - gap * (rows - 1)) / rows;
+    const photoH = cardH * 0.43; // photo fills top 43% — matches web
 
     chunk.forEach((w, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const x = 0.4 + col * (cardW + 0.2);
-      const y = 1.5 + row * (cardH + 0.2);
+      const x = padX + col * (cardW + gap);
+      const y = 1.5 + padY + row * (cardH + gap);
       const imgData = chunkImgs[i];
 
-      // Card outline
+      // ── Card background ────────────────────────────────────────────────────
       slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
         x, y, w: cardW, h: cardH,
         fill: { color: 'FFFFFF' },
-        line: { color: theme.accent, width: 2 },
+        line: { color: theme.accent, width: 1.5 },
       });
 
-      // ── Photo area (top half) ──────────────────────────────────────────────
+      // ── Photo / fallback coloured area ────────────────────────────────────
       if (imgData) {
-        slide.addImage({
-          data: imgData,
-          x, y, w: cardW, h: photoH,
-        });
-        // Semi-transparent overlay so word text is readable over the photo
-        slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
-          x, y: y + photoH - 0.5, w: cardW, h: 0.5,
-          fill: { color: theme.header, transparency: 20 },
-        });
+        slide.addImage({ data: imgData, x, y, w: cardW, h: photoH });
       } else {
-        // Fallback: coloured header strip
         slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
           x, y, w: cardW, h: photoH,
           fill: { color: theme.light }, line: { color: theme.light },
         });
-        // Emoji centred in fallback area
-        if (w.emoji) {
-          slide.addText(w.emoji, {
-            x: x + 0.1, y: y + photoH / 2 - 0.35, w: cardW - 0.2, h: 0.7,
-            fontSize: 36, align: 'center', valign: 'middle',
-          });
-        }
       }
 
-      // ── Word + emoji bar ───────────────────────────────────────────────────
-      slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
-        x, y: y + photoH, w: cardW, h: 0.48,
-        fill: { color: imgData ? theme.header : theme.accent },
-      });
-      slide.addText((w.emoji ? `${w.emoji}  ` : '') + w.word.toUpperCase(), {
-        x: x + 0.1, y: y + photoH, w: cardW - 0.2, h: 0.48,
-        fontSize: 16, bold: true, color: 'FFFFFF', valign: 'middle',
+      // ── Emoji badge — white circle overlaid on photo, centred ─────────────
+      if (w.emoji) {
+        const bSz = Math.min(cardW * 0.24, photoH * 0.55, 0.68);
+        const bx  = x + cardW / 2 - bSz / 2;
+        const by  = y + photoH / 2 - bSz / 2;
+        slide.addShape('ellipse' as PptxGenJS.SHAPE_NAME, {
+          x: bx, y: by, w: bSz, h: bSz,
+          fill: { color: 'FFFFFF' },
+          line: { color: 'CCCCCC', width: 0.5 },
+        });
+        slide.addText(w.emoji, {
+          x: bx, y: by, w: bSz, h: bSz,
+          fontSize: Math.round(bSz * 18), align: 'center', valign: 'middle',
+        });
+      }
+
+      // ── Word (uppercase, header colour, centred) ──────────────────────────
+      const wordY = y + photoH + 0.06;
+      slide.addText(w.word.toUpperCase(), {
+        x: x + 0.06, y: wordY, w: cardW - 0.12, h: 0.36,
+        fontSize: Math.max(11, Math.round(14 - rows)),
+        bold: true, color: theme.header, align: 'center', valign: 'middle',
       });
 
-      // ── Definition ────────────────────────────────────────────────────────
-      const defY = y + photoH + 0.52;
+      // ── Definition (italic, grey, centred) ───────────────────────────────
+      const defY = wordY + 0.37;
       slide.addText(w.definition, {
-        x: x + 0.12, y: defY, w: cardW - 0.24, h: 0.5,
-        fontSize: 13, color: '555555', italic: true, valign: 'top',
+        x: x + 0.06, y: defY, w: cardW - 0.12, h: 0.34,
+        fontSize: Math.max(9, Math.round(12 - rows)),
+        color: '555555', italic: true, align: 'center', valign: 'middle',
       });
 
-      // ── Example sentence ─────────────────────────────────────────────────
+      // ── Example sentence (light-green pill) ───────────────────────────────
       if (w.example) {
-        const exY = defY + 0.52;
-        const exH = cardH - photoH - 0.48 - 0.52 - 0.08;
-        slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
-          x: x + 0.1, y: exY, w: cardW - 0.2, h: exH,
-          fill: { color: theme.light }, line: { color: theme.light },
-        });
-        slide.addText(`"${w.example}"`, {
-          x: x + 0.15, y: exY + 0.05, w: cardW - 0.3, h: exH - 0.1,
-          fontSize: 12, color: theme.text, valign: 'top',
-        });
+        const exY = defY + 0.36;
+        const exH = cardH - photoH - 0.06 - 0.36 - 0.36 - 0.06;
+        if (exH > 0.2) {
+          slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
+            x: x + 0.06, y: exY, w: cardW - 0.12, h: exH,
+            fill: { color: theme.light }, line: { color: theme.light },
+          });
+          slide.addText(`“ ${w.example} ”`, {
+            x: x + 0.1, y: exY + 0.03, w: cardW - 0.2, h: exH - 0.06,
+            fontSize: Math.max(8, Math.round(11 - rows)),
+            color: theme.text, align: 'center', valign: 'middle',
+          });
+        }
       }
     });
     addTeacherNotes(pptx, slide, s.teacherNotes);
