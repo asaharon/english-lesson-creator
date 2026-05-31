@@ -57,6 +57,7 @@ JSON format:
       "title": "Slide title",
       "subtitle": "Grade X | Topic",
       "emoji": "🎓",
+      "imageTopic": "School",
       "duration": 0,
       "teacherNotes": "Practical Zoom delivery instructions",
       "content": { "type": "title", "emoji": "🎓" }
@@ -67,7 +68,9 @@ JSON format:
 CONTENT OBJECT SHAPES (use exactly these):
 - title slide:        { "type": "title", "emoji": "🎓" }
 - warmup/objectives/wrapup/homework: { "type": "bullets", "bullets": ["item 1", "item 2"] }
-- vocabulary:         { "type": "vocabulary", "words": [{ "word": "...", "definition": "...", "emoji": "🐱", "example": "..." }] }
+  For EVERY slide, add "imageTopic": "Wikipedia article title" — a concrete English noun matching the slide content (e.g. "Classroom", "Family", "Food", "Animal", "Sport"). This will be used to fetch a real photograph.
+- vocabulary:         { "type": "vocabulary", "words": [{ "word": "...", "definition": "...", "emoji": "🐱", "example": "...", "wikiTopic": "Cat" }] }
+  IMPORTANT for wikiTopic: use the exact English Wikipedia article title (e.g. "Dog", "Apple", "Football", "School", "Family"). Use a common noun or well-known topic that has a Wikipedia article with a photo. Leave blank only for abstract concepts.
 - grammar:            { "type": "grammar", "rule": "...", "structure": "Subject + is + Verb-ing", "examples": ["...", "..."], "emoji": "📝" }
 - reading:            { "type": "reading", "text": "...", "questions": ["..."] }
 - activity/game/song/speaking/practice: { "type": "activity", "activityType": "game|exercise|discussion|song", "instructions": ["Step 1: ...", "Step 2: ..."], "content": "game content or lyrics" }`;
@@ -101,6 +104,7 @@ export async function generateLesson(form: LessonFormData): Promise<Presentation
     duration: s.duration ?? 0,
     teacherNotes: s.teacherNotes ?? '',
     emoji: s.emoji,
+    imageTopic: s.imageTopic,
   }));
 
   return {

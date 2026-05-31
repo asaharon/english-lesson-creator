@@ -10,6 +10,7 @@ export interface VocabularyWord {
   definition: string;
   emoji?: string;
   example?: string;
+  wikiTopic?: string; // Wikipedia article title for photo lookup
 }
 
 export interface TitleContent { type: 'title'; emoji?: string }
@@ -43,6 +44,7 @@ export interface Slide {
   duration: number;
   teacherNotes: string;
   emoji?: string;
+  imageTopic?: string; // Wikipedia article title for slide background photo
 }
 
 export interface Presentation {
