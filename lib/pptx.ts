@@ -6,15 +6,12 @@ import {
   getGradeBand,
 } from '@/types/lesson';
 
-interface Theme {
-  bg: string;
-  header: string;
-  accent: string;
-  dark: string;
-  light: string;
-  text: string;
-}
+// ─── Theme ───────────────────────────────────────────────────────────────────
 
+interface Theme {
+  bg: string; header: string; accent: string;
+  dark: string; light: string; text: string;
+}
 const THEMES: Record<GradeBand, Theme> = {
   1: { bg: 'FFF9C4', header: 'AB47BC', accent: 'FF7043', dark: '6A1B9A', light: 'F3E5F5', text: '4A148C' },
   2: { bg: 'E3F2FD', header: '1565C0', accent: 'F57C00', dark: '0D47A1', light: 'BBDEFB', text: '0D47A1' },
@@ -25,28 +22,78 @@ const THEMES: Record<GradeBand, Theme> = {
 const SLIDE_W = 13.33;
 const SLIDE_H = 7.5;
 
+// ─── Wikipedia image fetcher ──────────────────────────────────────────────────
+// Returns a base64 data-URL suitable for pptxgenjs addImage(), or null on failure.
+
+async function fetchWikiImage(topic: string): Promise<string | null> {
+  if (!topic?.trim()) return null;
+  try {
+    const ctrl1 = new AbortController();
+    const t1 = setTimeout(() => ctrl1.abort(), 6000);
+    const res = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic.trim())}`,
+      { signal: ctrl1.signal }
+    );
+    clearTimeout(t1);
+    if (!res.ok) return null;
+
+    const data = await res.json() as { thumbnail?: { source: string } };
+    const imgUrl = data?.thumbnail?.source;
+    if (!imgUrl || imgUrl.toLowerCase().endsWith('.svg')) return null;
+
+    const ctrl2 = new AbortController();
+    const t2 = setTimeout(() => ctrl2.abort(), 6000);
+    const imgRes = await fetch(imgUrl, { signal: ctrl2.signal });
+    clearTimeout(t2);
+    if (!imgRes.ok) return null;
+
+    const ct = imgRes.headers.get('content-type') ?? 'image/jpeg';
+    if (ct.includes('svg')) return null; // pptxgenjs can't render SVG
+
+    const buf = Buffer.from(await imgRes.arrayBuffer());
+    return `data:${ct};base64,${buf.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
 function addHeader(slide: PptxGenJS.Slide, title: string, emoji: string | undefined, theme: Theme) {
   slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
     x: 0, y: 0, w: SLIDE_W, h: 1.2,
     fill: { color: theme.header },
   });
-  const titleText = emoji ? `${emoji}  ${title}` : title;
-  slide.addText(titleText, {
+  slide.addText((emoji ? `${emoji}  ` : '') + title, {
     x: 0.4, y: 0.1, w: SLIDE_W - 0.8, h: 1,
     fontSize: 28, bold: true, color: 'FFFFFF', valign: 'middle',
   });
 }
 
-function addTeacherNotes(pptx: PptxGenJS, slide: PptxGenJS.Slide, notes: string) {
-  if (notes) {
-    slide.addNotes(notes);
-  }
-  void pptx;
+function addTeacherNotes(_pptx: PptxGenJS, slide: PptxGenJS.Slide, notes: string) {
+  if (notes) slide.addNotes(notes);
 }
 
-function addTitleSlide(pptx: PptxGenJS, s: Slide, theme: Theme, presentation: Presentation) {
+// ─── TITLE slide ─────────────────────────────────────────────────────────────
+
+async function addTitleSlide(
+  pptx: PptxGenJS, s: Slide, theme: Theme, presentation: Presentation
+) {
   const slide = pptx.addSlide();
   slide.background = { color: theme.header };
+
+  // Background photo (imageTopic)
+  if (s.imageTopic) {
+    const img = await fetchWikiImage(s.imageTopic);
+    if (img) {
+      slide.addImage({ data: img, x: 0, y: 0, w: SLIDE_W, h: SLIDE_H, transparency: 65 });
+      // Re-draw a semi-transparent overlay so text stays readable
+      slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
+        x: 0, y: 0, w: SLIDE_W, h: SLIDE_H,
+        fill: { color: theme.header, transparency: 45 },
+      });
+    }
+  }
 
   const emoji = (s.content as TitleContent).emoji ?? '🎓';
   slide.addText(emoji, { x: 0, y: 0.8, w: SLIDE_W, h: 1.5, fontSize: 60, align: 'center' });
@@ -67,31 +114,47 @@ function addTitleSlide(pptx: PptxGenJS, s: Slide, theme: Theme, presentation: Pr
   addTeacherNotes(pptx, slide, s.teacherNotes);
 }
 
-function addBulletsSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
+// ─── BULLETS slide ────────────────────────────────────────────────────────────
+
+async function addBulletsSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   const slide = pptx.addSlide();
   slide.background = { color: theme.bg };
   addHeader(slide, s.title, s.emoji, theme);
 
-  const content = s.content as BulletsContent;
-  const bullets = content.bullets ?? [];
+  // Small thumbnail in top-right corner
+  if (s.imageTopic) {
+    const img = await fetchWikiImage(s.imageTopic);
+    if (img) {
+      slide.addImage({ data: img, x: SLIDE_W - 2.2, y: 1.3, w: 1.8, h: 1.2,
+        rounding: true });
+    }
+  }
+
+  const bullets = (s.content as BulletsContent).bullets ?? [];
   bullets.forEach((b, i) => {
     slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
       x: 0.4, y: 1.35 + i * 0.9, w: 0.35, h: 0.65,
       fill: { color: theme.accent }, line: { color: theme.accent },
     });
     slide.addText(b, {
-      x: 0.9, y: 1.35 + i * 0.9, w: SLIDE_W - 1.3, h: 0.65,
+      x: 0.9, y: 1.35 + i * 0.9, w: SLIDE_W - 3.2, h: 0.65,
       fontSize: 20, color: theme.text, valign: 'middle',
     });
   });
   addTeacherNotes(pptx, slide, s.teacherNotes);
 }
 
-function addVocabularySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
+// ─── VOCABULARY slide ─────────────────────────────────────────────────────────
+
+async function addVocabularySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   const content = s.content as VocabularyContent;
   const words = content.words ?? [];
 
-  // Split into groups of 4 per slide
+  // Pre-fetch all wiki images in parallel
+  const imgs = await Promise.all(
+    words.map(w => w.wikiTopic ? fetchWikiImage(w.wikiTopic) : Promise.resolve(null))
+  );
+
   const perSlide = 4;
   for (let page = 0; page < Math.ceil(words.length / perSlide); page++) {
     const slide = pptx.addSlide();
@@ -102,40 +165,81 @@ function addVocabularySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
     addHeader(slide, pageTitle, s.emoji ?? '📚', theme);
 
     const chunk = words.slice(page * perSlide, page * perSlide + perSlide);
+    const chunkImgs = imgs.slice(page * perSlide, page * perSlide + perSlide);
     const cols = chunk.length <= 2 ? chunk.length : 2;
     const rows = Math.ceil(chunk.length / cols);
     const cardW = (SLIDE_W - 0.8) / cols - 0.2;
     const cardH = (SLIDE_H - 1.5) / rows - 0.2;
+    const photoH = cardH * 0.50; // top 50% of card = photo
 
     chunk.forEach((w, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const x = 0.4 + col * (cardW + 0.2);
       const y = 1.5 + row * (cardH + 0.2);
+      const imgData = chunkImgs[i];
 
+      // Card outline
       slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
         x, y, w: cardW, h: cardH,
         fill: { color: 'FFFFFF' },
         line: { color: theme.accent, width: 2 },
       });
+
+      // ── Photo area (top half) ──────────────────────────────────────────────
+      if (imgData) {
+        slide.addImage({
+          data: imgData,
+          x, y, w: cardW, h: photoH,
+        });
+        // Semi-transparent overlay so word text is readable over the photo
+        slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
+          x, y: y + photoH - 0.5, w: cardW, h: 0.5,
+          fill: { color: theme.header, transparency: 20 },
+        });
+      } else {
+        // Fallback: coloured header strip
+        slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
+          x, y, w: cardW, h: photoH,
+          fill: { color: theme.light }, line: { color: theme.light },
+        });
+        // Emoji centred in fallback area
+        if (w.emoji) {
+          slide.addText(w.emoji, {
+            x: x + 0.1, y: y + photoH / 2 - 0.35, w: cardW - 0.2, h: 0.7,
+            fontSize: 36, align: 'center', valign: 'middle',
+          });
+        }
+      }
+
+      // ── Word + emoji bar ───────────────────────────────────────────────────
       slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
-        x, y, w: cardW, h: 0.45,
-        fill: { color: theme.light }, line: { color: theme.light },
+        x, y: y + photoH, w: cardW, h: 0.48,
+        fill: { color: imgData ? theme.header : theme.accent },
+      });
+      slide.addText((w.emoji ? `${w.emoji}  ` : '') + w.word.toUpperCase(), {
+        x: x + 0.1, y: y + photoH, w: cardW - 0.2, h: 0.48,
+        fontSize: 16, bold: true, color: 'FFFFFF', valign: 'middle',
       });
 
-      const emojiText = w.emoji ? `${w.emoji}  ` : '';
-      slide.addText(`${emojiText}${w.word}`, {
-        x: x + 0.1, y: y + 0.05, w: cardW - 0.2, h: 0.38,
-        fontSize: 18, bold: true, color: theme.dark,
-      });
+      // ── Definition ────────────────────────────────────────────────────────
+      const defY = y + photoH + 0.52;
       slide.addText(w.definition, {
-        x: x + 0.1, y: y + 0.5, w: cardW - 0.2, h: 0.5,
-        fontSize: 14, color: '555555', italic: true,
+        x: x + 0.12, y: defY, w: cardW - 0.24, h: 0.5,
+        fontSize: 13, color: '555555', italic: true, valign: 'top',
       });
+
+      // ── Example sentence ─────────────────────────────────────────────────
       if (w.example) {
+        const exY = defY + 0.52;
+        const exH = cardH - photoH - 0.48 - 0.52 - 0.08;
+        slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
+          x: x + 0.1, y: exY, w: cardW - 0.2, h: exH,
+          fill: { color: theme.light }, line: { color: theme.light },
+        });
         slide.addText(`"${w.example}"`, {
-          x: x + 0.1, y: y + 1.0, w: cardW - 0.2, h: cardH - 1.1,
-          fontSize: 13, color: theme.text,
+          x: x + 0.15, y: exY + 0.05, w: cardW - 0.3, h: exH - 0.1,
+          fontSize: 12, color: theme.text, valign: 'top',
         });
       }
     });
@@ -143,20 +247,32 @@ function addVocabularySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   }
 }
 
-function addGrammarSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
+// ─── GRAMMAR slide ────────────────────────────────────────────────────────────
+
+async function addGrammarSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   const slide = pptx.addSlide();
   slide.background = { color: theme.bg };
   addHeader(slide, s.title, s.emoji ?? '📝', theme);
 
   const c = s.content as GrammarContent;
 
+  // Small photo on the right if available
+  if (s.imageTopic) {
+    const img = await fetchWikiImage(s.imageTopic);
+    if (img) {
+      slide.addImage({ data: img, x: SLIDE_W - 2.4, y: 1.3, w: 2.0, h: 1.4, rounding: true });
+    }
+  }
+
+  const rightMargin = s.imageTopic ? 2.6 : 0;
+
   // Rule box
   slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
-    x: 0.4, y: 1.4, w: SLIDE_W - 0.8, h: 1.1,
+    x: 0.4, y: 1.4, w: SLIDE_W - 0.8 - rightMargin, h: 1.1,
     fill: { color: theme.light }, line: { color: theme.accent, width: 2 },
   });
   slide.addText(c.rule, {
-    x: 0.6, y: 1.45, w: SLIDE_W - 1.2, h: 1,
+    x: 0.6, y: 1.45, w: SLIDE_W - 1.2 - rightMargin, h: 1,
     fontSize: 18, color: theme.dark, valign: 'middle',
   });
 
@@ -172,7 +288,6 @@ function addGrammarSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
     });
   }
 
-  // Examples
   const yStart = c.structure ? 3.45 : 2.65;
   slide.addText('Examples:', {
     x: 0.4, y: yStart, w: 3, h: 0.4,
@@ -187,24 +302,36 @@ function addGrammarSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   addTeacherNotes(pptx, slide, s.teacherNotes);
 }
 
-function addReadingSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
+// ─── READING slide ────────────────────────────────────────────────────────────
+
+async function addReadingSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   const slide = pptx.addSlide();
   slide.background = { color: theme.bg };
   addHeader(slide, s.title, s.emoji ?? '📖', theme);
 
   const c = s.content as ReadingContent;
+  const img = s.imageTopic ? await fetchWikiImage(s.imageTopic) : null;
+  const textW = img ? SLIDE_W * 0.58 - 0.6 : SLIDE_W - 0.8;
 
-  // Reading text box
+  // Reading text box (left side)
   slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
-    x: 0.4, y: 1.4, w: SLIDE_W - 0.8, h: 2.8,
-    fill: { color: 'FFFFFF' }, line: { color: theme.accent, width: 1.5 },
+    x: 0.4, y: 1.4, w: textW, h: 2.8,
+    fill: { color: 'FFFEF7' }, line: { color: theme.accent, width: 1.5 },
   });
   slide.addText(c.text, {
-    x: 0.6, y: 1.5, w: SLIDE_W - 1.2, h: 2.6,
+    x: 0.6, y: 1.5, w: textW - 0.4, h: 2.6,
     fontSize: 16, color: '333333', valign: 'top',
   });
 
-  // Questions
+  // Photo on the right side
+  if (img) {
+    slide.addImage({
+      data: img,
+      x: 0.4 + textW + 0.2, y: 1.4, w: SLIDE_W - textW - 0.8, h: 2.8,
+    });
+  }
+
+  // Comprehension questions
   slide.addText('Comprehension Questions:', {
     x: 0.4, y: 4.35, w: 5, h: 0.4,
     fontSize: 16, bold: true, color: theme.header,
@@ -218,34 +345,76 @@ function addReadingSlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   addTeacherNotes(pptx, slide, s.teacherNotes);
 }
 
-function addActivitySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
+// ─── ACTIVITY / EXERCISE slide ────────────────────────────────────────────────
+
+async function addActivitySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   const slide = pptx.addSlide();
   slide.background = { color: theme.bg };
   addHeader(slide, s.title, s.emoji, theme);
 
   const c = s.content as ActivityContent;
+  const isExercise = c.activityType === 'exercise';
+
+  // Pre-fetch per-instruction images for exercise slides
+  let instrImgs: (string | null)[] = [];
+  if (isExercise && c.instructionTopics?.length) {
+    instrImgs = await Promise.all(
+      (c.instructionTopics).map(t => (t ? fetchWikiImage(t) : Promise.resolve(null)))
+    );
+  }
+
+  // Slide-level photo banner (non-exercise) or small corner thumbnail
+  if (s.imageTopic && !isExercise) {
+    const img = await fetchWikiImage(s.imageTopic);
+    if (img) {
+      slide.addImage({ data: img, x: SLIDE_W - 2.2, y: 1.3, w: 1.8, h: 1.2, rounding: true });
+    }
+  }
 
   slide.addText('Instructions:', {
     x: 0.4, y: 1.35, w: 3, h: 0.4,
     fontSize: 16, bold: true, color: theme.header,
   });
+
+  const instrCount = c.instructions?.length ?? 0;
+  const rowH = isExercise ? Math.min(0.85, (SLIDE_H - 2.1) / Math.max(instrCount, 1)) : 0.65;
+  const imgW = 1.35;
+  const textRightPad = isExercise ? imgW + 0.25 : 0;
+
   (c.instructions ?? []).forEach((instr, i) => {
+    const rowY = 1.82 + i * rowH;
+    const hasImg = isExercise && instrImgs[i];
+
+    // Number badge
     slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
-      x: 0.4, y: 1.82 + i * 0.65, w: 0.45, h: 0.45,
+      x: 0.4, y: rowY, w: 0.45, h: rowH - 0.06,
       fill: { color: theme.accent }, line: { color: theme.accent },
     });
     slide.addText(String(i + 1), {
-      x: 0.4, y: 1.82 + i * 0.65, w: 0.45, h: 0.45,
+      x: 0.4, y: rowY, w: 0.45, h: rowH - 0.06,
       fontSize: 14, bold: true, color: 'FFFFFF', align: 'center', valign: 'middle',
     });
+
+    // Instruction text
     slide.addText(instr, {
-      x: 0.95, y: 1.82 + i * 0.65, w: SLIDE_W - 1.4, h: 0.6,
+      x: 0.95, y: rowY, w: SLIDE_W - 1.4 - textRightPad, h: rowH - 0.06,
       fontSize: 17, color: theme.text, valign: 'middle',
     });
+
+    // Per-item illustration (exercise only)
+    if (hasImg) {
+      slide.addImage({
+        data: instrImgs[i]!,
+        x: SLIDE_W - imgW - 0.3,
+        y: rowY + 0.04,
+        w: imgW,
+        h: rowH - 0.10,
+      });
+    }
   });
 
   if (c.content) {
-    const instrH = (c.instructions?.length ?? 0) * 0.65;
+    const instrH = instrCount * rowH;
     const boxY = 1.82 + instrH + 0.1;
     if (boxY < SLIDE_H - 1) {
       slide.addShape('rect' as PptxGenJS.SHAPE_NAME, {
@@ -261,6 +430,8 @@ function addActivitySlide(pptx: PptxGenJS, s: Slide, theme: Theme) {
   addTeacherNotes(pptx, slide, s.teacherNotes);
 }
 
+// ─── Main export ──────────────────────────────────────────────────────────────
+
 export async function buildPptx(presentation: Presentation): Promise<Buffer> {
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
@@ -273,17 +444,17 @@ export async function buildPptx(presentation: Presentation): Promise<Buffer> {
   for (const slide of presentation.slides) {
     const ct = slide.content.type;
     if (slide.type === 'title' || ct === 'title') {
-      addTitleSlide(pptx, slide, theme, presentation);
+      await addTitleSlide(pptx, slide, theme, presentation);
     } else if (ct === 'vocabulary') {
-      addVocabularySlide(pptx, slide, theme);
+      await addVocabularySlide(pptx, slide, theme);
     } else if (ct === 'grammar') {
-      addGrammarSlide(pptx, slide, theme);
+      await addGrammarSlide(pptx, slide, theme);
     } else if (ct === 'reading') {
-      addReadingSlide(pptx, slide, theme);
+      await addReadingSlide(pptx, slide, theme);
     } else if (ct === 'activity') {
-      addActivitySlide(pptx, slide, theme);
+      await addActivitySlide(pptx, slide, theme);
     } else {
-      addBulletsSlide(pptx, slide, theme);
+      await addBulletsSlide(pptx, slide, theme);
     }
   }
 
